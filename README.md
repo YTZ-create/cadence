@@ -12,7 +12,7 @@ Automate exporting health data from a Nothing CMF Watch via ADB, decrypt it, and
 
 </div>
 
-> 💡 **看不懂怎么用？** 别啃文档——把这个仓库（或这份 README）扔给你的 AI 助手，说一句「按这个帮我把 CMF Watch 数据同步配好」，让它读完替你装 adb / 7-Zip、改 `config.py`、连上手机跑 `cmf_sync.py` 就行。
+> 💡 **看不懂怎么用？** 把这个仓库（或这个网址）扔给你的 AI 助手，说一句「按这个帮我把 CMF Watch 数据同步配好」，让它读完替你装 adb / 7-Zip、改 `config.py`、连上手机跑 `cmf_sync.py` 就行。
 
 ---
 
