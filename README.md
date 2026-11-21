@@ -247,7 +247,7 @@ python -X utf8 workspace/scripts/reaction_test.py selftest
 - 高能时段目前是校准模板，尚未用足够时间标签训练日内曲线；
 - 个人模型尚未在本仓库附带个人数据上训练，训练门槛为 45/60 天。
 
-## 旧版 ADB 导出
+## 旧版 ADB（CMF Watch 3 Pro睡眠健康数据自动同步工具1.0） 导出
 
 `legacy/` 保留了早期 ADB + Excel 导出方案：
 
@@ -258,7 +258,7 @@ cp config.example.py config.py
 python cmf_sync.py
 ```
 
-旧方案需要手机开启无线调试、7-Zip 和 Chrome；新方案优先推荐 BLE 直连。
+旧方案（1.0）需要手机开启无线调试、7-Zip 和 Chrome；新方案（CMF Watch 3 Pro睡眠健康数据自动同步工具2.0）优先推荐 BLE 直连。
 
 ## License
 
