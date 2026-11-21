@@ -2,6 +2,7 @@
 
 # Cadence / 节律
 
+**焕新CMF Watch 3 Pro健康数据自动同步工具2.0**
 **本地优先的手表睡眠、恢复与精力引擎**
 
 *Local-first sleep, recovery and energy for your watch.*
