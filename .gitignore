@@ -6,46 +6,43 @@ __pycache__/
 .Python
 env/
 venv/
-ENV/
+.venv/
 build/
-develop-eggs/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
-.installed.cfg
-*.egg
+.pytest_cache/
 
-# 配置文件（包含个人路径）
+# Local secrets / config
 config.py
+openclaw.json
+.env
+*.enc
+*.pem
+*.key
 
-# 数据目录
-data/
-*.db
+# Device secret
+cmf-watch/tools/.watch_state.json
+cmf-watch/tools/state.json
+
+# Runtime data and logs
+workspace/data/
+cmf-watch/data/
+*.log
 *.sqlite
 *.sqlite3
+*.db
 
-# 临时文件
+# Temporary files
 *.tmp
 *.temp
 uia_*.xml
 cmf-export/
 cmf-export.zip
 
-# IDE
+# IDE / OS
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
-
-# OS
 .DS_Store
 Thumbs.db

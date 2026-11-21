@@ -1,207 +1,267 @@
-# CMF Watch 健康数据自动同步工具
+<div align="center">
 
-自动从 Nothing CMF Watch 导出健康数据并导入到本地 SQLite 数据库。
+# cmf-sync
 
-## ✨ 功能特性
+**CMF Watch 3 Pro 本地 BLE 健康同步与睡眠/恢复/精力分析**
 
-- 📱 **自动导出** - 通过 ADB 控制手机自动打开导出页面
-- 🔐 **密码识别** - 自动从 UI 中读取导出密码
-- 🔗 **链接提取** - 从 Chrome 浏览器中读取导出链接
-- 📦 **自动下载** - 下载加密的 zip 文件
-- 🗜️ **解密解压** - 使用 7-Zip 解压 AES 加密的 zip
-- 💾 **增量入库** - 导入到 SQLite，支持增量更新（不会重复插入）
+*Local-first CMF Watch health sync, sleep ledger, recovery and energy scoring.*
 
-## 📊 支持的数据类型
+![Python](https://img.shields.io/badge/language-Python-3776AB?style=flat-square)
+![Transport](https://img.shields.io/badge/transport-BLE-6A5ACD?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT%20%2B%20AGPL--3.0-2ea44f?style=flat-square)
+![Version](https://img.shields.io/badge/version-2.0-0b7285?style=flat-square)
 
-- ❤️ 24小时心率
-- 💓 静息心率
-- 😰 压力数据
-- 🫁 血氧数据
-- 🏃 今日活动（步数、卡路里、运动时长等）
-- 🏋️ 运动记录（类型、时长、距离、VO2max 等）
-- 👤 账号信息（昵称、性别、生日、身高、体重）
+</div>
 
-## 📦 依赖
+> **看不懂怎么用？** 把这个仓库和 README 直接扔给你的 AI 助手，说一句「按这个帮我装依赖、连手表、跑一次同步和自测」。
 
-### 系统依赖
+---
 
-1. **Android Debug Bridge (adb)**
-   - 下载: https://developer.android.com/tools/releases/platform-tools
-   - 确保 `adb` 在 PATH 中，或在 `config.py` 中指定完整路径
+## 目录
 
-2. **7-Zip**
-   - Windows: https://www.7-zip.org/
-   - macOS: `brew install p7zip`
-   - Linux: `apt-get install p7zip-full`
-   - 用于解压 AES 加密的 zip 文件（Python 的 zipfile 不支持）
+- [这个项目是什么](#这个项目是什么)
+- [工作原理](#工作原理)
+- [能力范围](#能力范围)
+- [快速开始](#快速开始)
+- [算法口径](#算法口径)
+- [配置项](#配置项)
+- [目录结构](#目录结构)
+- [自测](#自测)
+- [隐私与脱敏](#隐私与脱敏)
+- [已知限制](#已知限制)
+- [旧版 ADB 导出](#旧版-adb-导出)
+- [License](#license)
 
-3. **curl**
-   - Windows 10+ 已内置
-   - macOS/Linux 通常已安装
+## 这个项目是什么
 
-### Python 依赖
+`cmf-sync` 是一个本地优先的 CMF Watch 3 Pro 工具链：
 
-```bash
-pip install -r requirements.txt
+- 通过 BLE 直连手表，读取睡眠、睡眠窗口心率、血氧、压力等夜间数据；
+- 写入本地睡眠账本，计算动态目标、睡眠债、质量分、恢复分；
+- 基于恢复分和近 7 天睡眠债变化，生成校准期精力分与初步高能时段；
+- 提供一个桌面反应力小测，把带时间戳的反应数据接入个人模型特征；
+- 不依赖手机 App、不需要 root，也不上传个人健康数据。
+
+项目从个人 N=1 使用场景中抽离而来。仓库内**不包含任何真实睡眠记录、设备 authkey、飞书 ID 或本机路径**。
+
+## 工作原理
+
+```mermaid
+flowchart TD
+  W[CMF Watch 3 Pro] -->|BLE| B[cmf-watch/bridge.py]
+  B --> P[parse_data.py]
+  P --> A[workspace/data/health/watch/DATE.json]
+  A --> H[watch_health.py]
+  H --> S[sleep_store.py]
+  S --> R[recovery_score.py]
+  R --> E[energy_score.py]
+  A --> R
+  T[reaction_test.py] --> E
+  E --> O[精力分 / 高能时段]
+  S --> L[睡眠时长 / 睡眠债 / 质量分]
 ```
 
-## 🔧 配置
+核心原则：
 
-1. 复制配置模板：
+1. **手表是数据源，本地是唯一存储**；
+2. **睡眠按醒来那天归属**；
+3. **同步失败不伪造数据**，缺项就标记缺项；
+4. **恢复/精力分是个人参考，不是医学指标**；
+5. 自评和 events 只作为训练标签，不直接修正当天预测分。
+
+## 能力范围
+
+| 模块 | 能力 |
+|---|---|
+| BLE 同步 | 睡眠会话、睡眠阶段、睡眠窗口心率、血氧、压力 |
+| 睡眠账本 | 动态目标、睡眠债、质量分、规律性、连续达标 |
+| 恢复分 | 固定绝对项 + 个人百分位项，权重可复核 |
+| 精力分 | 恢复分 + 近 7 天债变化；自评只做训练标签 |
+| 高能时段 | 校准期模板；后续由日内曲线替换 |
+| 反应力测试 | 8 次空格反应，日报聚合，接入个人模型特征 |
+| 旧版兼容 | `legacy/` 保留 ADB + Excel 导出方案 |
+
+## 快速开始
+
+### 1. 准备环境
+
+- Python 3.12+
+- Windows 10/11 或 Linux（macOS 需自行适配 BLE 权限）
+- 支持 CMF Watch 3 Pro 的蓝牙适配器
 
 ```bash
+git clone https://github.com/YTZ-create/cmf-sync.git
+cd cmf-sync
+python -m pip install -r requirements.txt
+```
+
+### 2. 确认手表
+
+```bash
+python -X utf8 cmf-watch/probe_scan.py
+```
+
+记下手表地址，或直接依赖名称扫描。
+
+### 3. 启动 BLE 桥
+
+```bash
+python -X utf8 cmf-watch/bridge.py
+```
+
+桥只监听 `127.0.0.1:8765`，不对外网开放。
+
+### 4. 同步与查看
+
+```bash
+python -X utf8 workspace/scripts/watch_health.py status
+python -X utf8 workspace/scripts/watch_health.py sync
+python -X utf8 workspace/scripts/watch_health.py report
+```
+
+### 5. 计算恢复/精力分
+
+```bash
+python -X utf8 workspace/scripts/recovery_score.py --date 2026-01-15 --json
+python -X utf8 workspace/scripts/energy_score.py predict --date 2026-01-15 --json
+```
+
+### 6. 反应力测试
+
+```bash
+python -X utf8 workspace/scripts/reaction_test.py
+```
+
+双击窗口后按空格开始；看到白点按空格，鼠标点击不计。结果写入本地 `workspace/data/health/reaction/`。
+
+## 算法口径
+
+完整公式、权重、缺失处理和验证边界见 [docs/ALGORITHMS.md](docs/ALGORITHMS.md)。
+
+简要版：
+
+### 恢复分
+
+| 分项 | 口径 | 权重 |
+|---|---|---:|
+| 睡眠时长达成 | 固定绝对 | 30 |
+| 连续性/效率 | 固定绝对 | 15 |
+| 深睡占比 | 个人百分位 | 15 |
+| HR dip | 个人百分位 | 20 |
+| 阶段心率梯度 | 个人百分位 | 5 |
+| 血氧 | 固定安全阈值 | 10 |
+| 压力 | 个人百分位（反向） | 5 |
+
+个人百分位映射：5%→40、25%→60、50%→75、75%→90、95%→100。基线不足 14 晚时退回固定参考。
+
+### 精力分
+
+```text
+精力分 = 恢复分 - 近 7 天睡眠债变差惩罚
+```
+
+- 债变差最多扣 4 分；债稳定或改善不扣；
+- 自评/events 只作为个人模型训练标签，不参与当天评分；
+- 个人模型 45 天可试训、60 天且时间外验证通过才启用；
+- 高能时段当前是**校准期模板**，个人模型激活时回退模板，不会消失。
+
+### 高能时段
+
+- 主窗口 120 分钟、下午窗口 120 分钟；
+- 最近 7 天债恶化 ≥2 小时：主窗口缩至 90 分钟，总 3小时30分钟；
+- 债稳定/改善：总 4小时；
+- 模板保留为长期 fallback；只有 events 覆盖多时段多天、日内曲线通过时间外验证后，才切换为 `curve`。
+
+### 反应力
+
+- 每次 8 个试次；日报聚合当天中位数、漏拍总数、误点总数、距起床时间中位数；
+- 训练特征：`rt_median`、`rt_lapses`、`rt_false_starts`、`rt_time_since_wake`、`rt_missing`；
+- 没有测试时 `rt_missing=1`，不会把“没测”静默当成中位数。
+
+## 配置项
+
+| 环境变量 | 作用 | 默认 |
+|---|---|---|
+| `CMF_WATCH_ADDRESS` | 手表 BLE 地址 | 按名称扫描 |
+| `CMF_WATCH_NAME` | 手表名称匹配 | `CMF Watch 3 Pro` |
+| `OPENCLAW_STATE_DIR` | 工作区根目录 | 仓库根目录 |
+| `OPENCLAW_CLI` | OpenClaw CLI 路径 | PATH 中的 `openclaw` |
+| `OPENCLAW_CONFIG` | OpenClaw 配置文件 | 仓库根目录 `openclaw.json` |
+| `CMF_FEISHU_CHAT_ID` | 可选飞书私聊通知目标 | 关闭通知 |
+| `CMF_MORNING_JOB_ID` | 可选早报 cron ID | 不触发早报 |
+
+所有环境变量都可以不设置；BLE 同步、睡眠账本、恢复分、精力分和反应力测试可独立使用。飞书/OpenClaw 集成是可选层。
+
+## 目录结构
+
+```text
+.
+├── cmf-watch/
+│   ├── bridge.py              # BLE HTTP 桥
+│   ├── parse_data.py          # 帧解析
+│   ├── analyze_sleep.py       # 人工核对脚本
+│   ├── enable-bt.ps1          # Windows 蓝牙开关
+│   ├── probe_scan.py          # BLE 扫描
+│   └── tools/                 # AGPL-3.0 手表协议工具
+├── workspace/scripts/
+│   ├── watch_health.py        # 同步/归档/报告入口
+│   ├── watch_auto_sync.py     # 自动同步与可选通知
+│   ├── sleep_store.py         # 睡眠账本与派生指标
+│   ├── recovery_score.py      # 恢复分
+│   ├── energy_score.py        # 精力分/高能时段
+│   ├── energy_onboarding.py   # 冷启动问卷
+│   └── reaction_test.py       # 桌面反应力测试
+├── docs/                      # 算法、数据格式、隐私
+├── examples/                  # 合成示例，不含真实数据
+├── legacy/                    # 旧 ADB + Excel 导出方案
+├── VERSION                    # 2.0
+└── README.md
+```
+
+## 自测
+
+```bash
+python -X utf8 workspace/scripts/recovery_score.py --selftest
+python -X utf8 workspace/scripts/energy_score.py selftest
+python -X utf8 workspace/scripts/reaction_test.py selftest
+```
+
+自测使用临时目录，不读写真实健康数据。
+
+## 隐私与脱敏
+
+- 仓库不包含真实睡眠、心率、血氧、压力、反应力或自评数据；
+- `cmf-watch/tools/.watch_state.json` 含设备 secret/authkey，已被 `.gitignore` 排除；
+- 手表地址、飞书 open_id、cron ID 和本机路径已改为环境变量/占位符；
+- 第三方工具的 authkey/sessionKey 调试输出已脱敏；
+- 同步数据默认只写本地；飞书通知为可选功能，未配置时不发送；
+- 详见 [docs/PRIVACY.md](docs/PRIVACY.md)。
+
+## 已知限制
+
+- 手表协议来自社区逆向，固件升级可能改变帧格式；
+- 手表一次只允许一个 BLE 客户端，手机 App 连接时电脑无法同步；
+- 夜间心率/血氧/压力是稀疏采样，不能当作连续曲线；
+- 睡眠阶段和深睡时长为设备估算，不是多导睡眠图；
+- 恢复分/精力分是个人参考，不构成医学诊断；
+- 高能时段目前是校准模板，尚未用足够时间标签训练日内曲线；
+- 个人模型尚未在本仓库附带个人数据上训练，训练门槛为 45/60 天。
+
+## 旧版 ADB 导出
+
+`legacy/` 保留了早期 ADB + Excel 导出方案：
+
+```bash
+cd legacy
+python -m pip install -r ../requirements.txt
 cp config.example.py config.py
-```
-
-2. 编辑 `config.py`，根据你的系统修改路径：
-
-```python
-# ADB 路径
-ADB_PATH = r'C:\platform-tools\adb.exe'  # Windows
-# ADB_PATH = '/usr/local/bin/adb'  # macOS/Linux
-
-# 7-Zip 路径
-SEVENZIP_PATH = r'C:\Program Files\7-Zip\7z.exe'  # Windows
-# SEVENZIP_PATH = '/usr/bin/7z'  # macOS/Linux
-
-# 数据库路径
-DB_PATH = './data/health.db'
-RAW_DIR = './data/raw'
-```
-
-## 🚀 使用方法
-
-### 1. 准备手机
-
-1. 确保手机和电脑在同一 Wi-Fi 网络
-2. 在手机上开启**无线调试**：
-   - 开发者选项 → 无线调试 → 开启
-   - 使用配对码配对设备（首次需要）
-3. 在电脑上配对：
-   ```bash
-   adb pair <手机IP>:<配对端口>
-   # 输入配对码
-   ```
-4. 连接设备：
-   ```bash
-   adb connect <手机IP>:<连接端口>
-   ```
-
-### 2. 运行同步
-
-```bash
 python cmf_sync.py
 ```
 
-脚本会自动完成以下步骤：
+旧方案需要手机开启无线调试、7-Zip 和 Chrome；新方案优先推荐 BLE 直连。
 
-1. ✅ 检查设备连接
-2. 📱 打开 CMF Watch App
-3. 🧭 导航到"数据与隐私" → "导出个人数据"
-4. 🔑 读取导出密码（4-6位数字）
-5. 🔗 点击"复制链接"
-6. 🌐 打开 Chrome 读取剪贴板链接
-7. 📥 下载 zip 文件
-8. 🗜️ 使用 7-Zip 解压（需要密码）
-9. 💾 导入到 SQLite 数据库
+## License
 
-### 3. 查看数据
-
-```bash
-sqlite3 data/health.db
-
-# 查看心率数据
-SELECT * FROM heart_rate_24h ORDER BY ts DESC LIMIT 10;
-
-# 查看运动记录
-SELECT * FROM exercise ORDER BY start_ts DESC;
-
-# 查看数据统计
-SELECT 'heart_rate_24h', COUNT(*) FROM heart_rate_24h
-UNION ALL
-SELECT 'exercise', COUNT(*) FROM exercise;
-```
-
-## ⚠️ 注意事项
-
-### 7天导出限制
-
-CMF Watch App 有**7天导出窗口限制**：
-- 导出后 7 天内不能重复导出
-- 如果尝试在限制期内导出，脚本会提示失败
-- 建议每周固定一天（如周日）进行同步
-
-### 无线调试
-
-- 手机重启后需要重新连接 adb
-- 如果连接失败，尝试：
-  ```bash
-  adb kill-server
-  adb start-server
-  adb connect <手机IP>:<端口>
-  ```
-
-### Chrome 剪贴板
-
-- 脚本依赖 Chrome 的剪贴板预览功能
-- 如果 Chrome 版本不同导致 UI 变化，可能需要调整 `read_link_from_chrome()` 函数
-- 确保手机已安装 Chrome 浏览器
-
-## 📁 项目结构
-
-```
-.
-├── cmf_sync.py              # 主同步脚本
-├── cmf_health_import.py     # Excel 导入脚本
-├── config.example.py        # 配置模板
-├── config.py                # 你的配置（不提交到 git）
-├── requirements.txt         # Python 依赖
-├── data/                    # 数据存储目录
-│   ├── health.db           # SQLite 数据库
-│   └── raw/                # 原始 Excel 文件
-└── README.md               # 本文档
-```
-
-## 🛠️ 故障排除
-
-### 问题：设备未连接
-
-```bash
-# 检查 adb 设备
-adb devices
-
-# 重新连接
-adb connect <手机IP>:<端口>
-```
-
-### 问题：无法导航到导出页
-
-- 确保 CMF Watch App 已登录
-- 手动打开 App 检查是否能进入"数据与隐私"页面
-- 如果 UI 更新，可能需要调整 `open_export_page()` 中的关键词
-
-### 问题：Chrome 中找不到链接
-
-- 确保点击了"复制链接"按钮
-- 检查 Chrome 是否是默认浏览器
-- 手动复制链接，在脚本中硬编码（不推荐）
-
-### 问题：解压失败
-
-- 确保 7-Zip 已正确安装
-- 检查 `config.py` 中的 `SEVENZIP_PATH` 是否正确
-- 手动测试：`7z x file.zip -p密码`
-
-## 📄 License
-
-MIT
-
-## 🤝 贡献
-
-欢迎提交 Issue 和 Pull Request！
-
-## 🙏 致谢
-
-- [Android Debug Bridge](https://developer.android.com/tools/adbd)
-- [7-Zip](https://www.7-zip.org/)
-- [openpyxl](https://openpyxl.readthedocs.io/)
+- 本项目原创代码：MIT，见 [LICENSE](LICENSE)；
+- `cmf-watch/tools/` 来自 `arnav-kr/cmf-watch-utils`，AGPL-3.0，见 [cmf-watch/LICENSE](cmf-watch/LICENSE)；
+- 若将 AGPL 组件与本项目一起分发，请遵守 AGPL-3.0 的相应义务；详见 [NOTICE](NOTICE)。

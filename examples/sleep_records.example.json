@@ -1,0 +1,16 @@
+{
+  "records": {
+    "2026-01-01": {
+      "date": "2026-01-01",
+      "bedtime": "23:30",
+      "wake": "07:30",
+      "duration_min": 480,
+      "target_min": 480,
+      "deep_min_est": 90,
+      "rem_min_est": 80,
+      "night_wake_count": 1,
+      "source": "watch"
+    }
+  },
+  "app_goal_min": 480
+}

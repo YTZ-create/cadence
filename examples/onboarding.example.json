@@ -1,0 +1,11 @@
+{
+  "weekday_bed": "23:30",
+  "weekday_wake": "07:30",
+  "weekend_bed": "00:30",
+  "weekend_wake": "09:00",
+  "natural_sleep_min": 480,
+  "chronotype": 3,
+  "post_lunch_sleepiness": 1,
+  "nap_caffeine": "occasional nap or coffee",
+  "completed_at": "2026-01-01 10:00"
+}

@@ -1,0 +1,26 @@
+{
+  "date": "2026-01-01",
+  "tests": [
+    {
+      "date": "2026-01-01",
+      "ts": 1767272400,
+      "time": "15:00",
+      "block": "afternoon",
+      "time_since_wake_min": 450,
+      "source": "desktop",
+      "version": 4,
+      "space_trials": 8,
+      "started_at": "2026-01-01 15:00:00",
+      "ended_at": "2026-01-01 15:01:00",
+      "duration_s": 60,
+      "trials": 8,
+      "valid": 8,
+      "median_ms": 260,
+      "mean_ms": 270,
+      "min_ms": 220,
+      "max_ms": 340,
+      "lapses": 0,
+      "false_starts": 0
+    }
+  ]
+}
