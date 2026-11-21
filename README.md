@@ -1,10 +1,10 @@
 <div align="center">
 
-# cmf-sync
+# Cadence / 节律
 
-**CMF Watch 3 Pro 本地 BLE 健康同步与睡眠/恢复/精力分析**
+**本地优先的手表睡眠、恢复与精力引擎**
 
-*Local-first CMF Watch health sync, sleep ledger, recovery and energy scoring.*
+*Local-first sleep, recovery and energy for your watch.*
 
 ![Python](https://img.shields.io/badge/language-Python-3776AB?style=flat-square)
 ![Transport](https://img.shields.io/badge/transport-BLE-6A5ACD?style=flat-square)
@@ -34,7 +34,7 @@
 
 ## 这个项目是什么
 
-`cmf-sync` 是一个本地优先的 CMF Watch 3 Pro 工具链：
+`Cadence` 是一个本地优先的 CMF Watch 3 Pro 工具链：
 
 - 通过 BLE 直连手表，读取睡眠、睡眠窗口心率、血氧、压力等夜间数据；
 - 写入本地睡眠账本，计算动态目标、睡眠债、质量分、恢复分；
@@ -90,8 +90,8 @@ flowchart TD
 - 支持 CMF Watch 3 Pro 的蓝牙适配器
 
 ```bash
-git clone https://github.com/YTZ-create/cmf-sync.git
-cd cmf-sync
+git clone https://github.com/YTZ-create/cadence.git
+cd cadence
 python -m pip install -r requirements.txt
 ```
 

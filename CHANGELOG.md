@@ -1,6 +1,8 @@
 # Changelog
 
-## 2.0
+## 2.0 · Cadence
+
+- Renamed the project to Cadence / 节律.
 
 - Add direct BLE sync for CMF Watch 3 Pro night data.
 - Add local sleep ledger with dynamic target, sleep debt, quality, regularity and streak.
